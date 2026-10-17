@@ -1,0 +1,10 @@
+{
+  "name": "qa",
+  "baseUrl": "https://practicetestautomation.com/",
+  
+  "apiUrl": "https://qa.example-store.com/rest/V1",
+  "sellerPortalUrl": "https://seller.qa.example-store.com",
+  "paymentProvider": "stripe",
+  "readOnly": false,
+  "features": { "backInStock": true, "multiSeller": true, "b2b": true }
+}

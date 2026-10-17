@@ -1,0 +1,5 @@
+{
+  "simple": { "sku": "24-MB01", "name": "Joust Duffle Bag", "qty": 1 },
+  "second": { "sku": "24-MB04", "name": "Strive Shoulder Pack", "qty": 1 },
+  "outOfStock": { "sku": "OOS-001", "name": "Sold Out Item", "qty": 1 }
+}

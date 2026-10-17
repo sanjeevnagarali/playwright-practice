@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "playwright": { "command": "npx", "args": ["@playwright/mcp@latest"] },
+    "atlassian": { "type": "http", "url": "https://mcp.atlassian.com/v2/mcp" },
+    "linear": { "type": "sse", "url": "https://mcp.linear.app/sse" },
+    "figma": { "type": "http", "url": "https://mcp.figma.com/mcp" }
+  }
+}

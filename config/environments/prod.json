@@ -1,0 +1,9 @@
+{
+  "name": "prod",
+  "baseUrl": "https://prod.example-store.com",
+  "apiUrl": "https://prod.example-store.com/rest/V1",
+  "sellerPortalUrl": "https://seller.prod.example-store.com",
+  "paymentProvider": "stripe",
+  "readOnly": true,
+  "features": { "backInStock": true, "multiSeller": true, "b2b": true }
+}

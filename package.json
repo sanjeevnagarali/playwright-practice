@@ -1,0 +1,36 @@
+{
+  "name": "playwright-commerce-framework",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Playwright + TypeScript framework for ecommerce/marketplace apps (Adobe Commerce first) with a Claude AI-assisted creation process",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "test": "playwright test",
+    "test:smoke": "playwright test --grep @smoke",
+    "test:regression": "playwright test --grep @regression",
+    "test:ticket": "playwright test --grep",
+    "test:storefront": "playwright test --project=storefront-chromium",
+    "test:marketplace": "playwright test --project=marketplace",
+    "test:integration": "playwright test --project=integration",
+    "test:api": "playwright test --project=api",
+    "test:ui": "playwright test --ui",
+    "test:debug": "playwright test --debug",
+    "codegen": "playwright codegen",
+    "report": "playwright show-report",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "ai:check": "node scripts/ai-check.mjs",
+    "ai:check:json": "node scripts/ai-check.mjs --json",
+    "verify": "npm run lint && npm run typecheck && npm run ai:check"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.0",
+    "@playwright/test": "1.63.0",
+    "@types/node": "^22.10.0",
+    "dotenv": "^16.4.5",
+    "eslint": "^9.39.0",
+    "prettier": "^3.3.3",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.46.0"
+  }
+}

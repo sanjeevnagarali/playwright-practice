@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Read", "Glob", "Grep",
+      "Bash(npm run verify)", "Bash(npm run lint)", "Bash(npm run typecheck)", "Bash(npm run ai:check*)",
+      "Bash(npm run test:*)", "Bash(npx playwright test*)", "Bash(npx playwright --version)",
+      "Bash(node scripts/ai-check.mjs*)", "Bash(git status)", "Bash(git diff*)", "Bash(git log*)"
+    ],
+    "ask": [
+      "Bash(git commit*)", "Bash(git push*)", "Bash(git checkout*)", "Bash(npm install*)"
+    ],
+    "deny": [
+      "Read(./.env)", "Read(./.env.*)", "Read(./.auth/**)",
+      "Bash(git push --force*)", "Bash(git push -f*)", "Bash(rm -rf*)", "Bash(curl*)", "Bash(wget*)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [{ "type": "command", "command": "node scripts/claude-hooks/post-edit-check.mjs" }]
+      }
+    ]
+  }
+}
