@@ -15,7 +15,7 @@ every change. Claude **authors** code; Playwright **executes** it deterministica
 | Page objects — `src/pages`, `src/components` | Locators and actions | Builds/updates classes from the live app (Playwright MCP) and Figma |
 | Integrations — `src/integrations` | Payment, tax, search, email, mocks | Applies the right adapter/mock for 3rd-party scenarios |
 | Test specs — `tests/` | Business-readable scenarios | Writes specs from the **approved** test plan, traced to TC ids |
-| Reporting & CI — `src/reporters`, `bitbucket-pipelines.yml` | Reports, traces, sharded runs | Triages failures from the AI digest; drafts the ticket update |
+| Reporting & CI — `src/reporters`, `.github/workflows/` | Reports, traces, sharded runs | Triages failures from the AI digest; drafts the ticket update |
 
 Docs: **[AI integrated process](docs/AI_INTEGRATED_PROCESS.md)** · **[Framework guide](docs/FRAMEWORK_GUIDE.md)** ·
 **[Contributing](docs/CONTRIBUTING.md)** · **[CLAUDE.md](CLAUDE.md)** (rules Claude follows every session)
@@ -43,8 +43,10 @@ playwright-commerce-framework/
 │   ├── ai-check.mjs               ★ executable CLAUDE.md: POM, waits, tags, data, traceability rules
 │   ├── ci-ai-triage.sh            ★ optional read-only Claude triage in CI after-script
 │   └── claude-hooks/post-edit-check.mjs ★ feeds rule violations back to Claude instantly
-├── bitbucket-pipelines.yml        PR: lint+types+ai:check+smoke · develop: 4 shards · manual/nightly/cross-browser/prod
-├── playwright.config.ts           projects: setup, storefront x4, marketplace, integration, api (+ AI triage reporter)
+├── .github/workflows/
+│   ├── ci.yml                     PR: lint+types+ai:check+smoke · develop: 4 shards · main: staging smoke
+│   └── manual-tests.yml           on demand: run-tests / nightly-regression / cross-browser / prod-smoke
+├── playwright.config.ts           projects: setup, storefront x4, marketplace, practice, integration, api (+ AI triage reporter)
 ├── package.json / tsconfig.json / eslint.config.mjs / .prettierrc / .env.example
 ├── config/
 │   ├── env.config.ts
@@ -76,15 +78,14 @@ playwright-commerce-framework/
 ## Part 1 – Prerequisites
 
 1. **Node.js 20 or 22 LTS**, **Git**, **VS Code** (Playwright Test, ESLint, Prettier extensions).
-2. **Bitbucket Cloud** access with SSH key (`ssh-keygen -t ed25519`, add under *Personal settings → SSH keys*) or an Atlassian API token for HTTPS.
+2. **GitHub** access over HTTPS (Git Credential Manager signs you in on first push) or SSH (`ssh-keygen -t ed25519`, add under *Settings → SSH and GPG keys*).
 3. ★ **Claude Code** — `npm install -g @anthropic-ai/claude-code`, then run `claude` in the repo and sign in with your Claude account (Team/Enterprise seat) or an Anthropic API key. Docs: https://docs.claude.com/en/docs/claude-code/overview
 4. ★ Access to **Jira or Linear** and **Figma** for the project (the MCP servers sign in with your own account).
 
-## Part 2 – Create the Bitbucket repository
+## Part 2 – Create the GitHub repository
 
-1. Workspace → **Projects** → open/create e.g. `QA Automation`.
-2. **Create → Repository**: name `playwright-commerce-framework`, **Private**, no README, no .gitignore, default branch `main`.
-3. Copy the SSH clone URL.
+1. https://github.com/new → name e.g. `playwright-commerce-framework`, **Private**, no README, no .gitignore, no licence.
+2. Copy the clone URL.
 
 ## Part 3 – Local setup
 
@@ -116,40 +117,45 @@ Inside Claude Code:
    ```
 Personal overrides go in `.claude/settings.local.json` (git-ignored). Don't loosen the shared `deny` rules.
 
-## Part 5 – Push to Bitbucket
+## Part 5 – Push to GitHub
 
 ```bash
 git init -b main
 git add .
 git commit -m "chore(QA-1): Playwright commerce framework with Claude AI integration"
-git remote add origin git@bitbucket.org:<workspace>/playwright-commerce-framework.git
+git remote add origin https://github.com/<owner>/playwright-commerce-framework.git
 git push -u origin main
 git checkout -b develop && git push -u origin develop
 ```
 
-## Part 6 – Configure the repository in Bitbucket
+## Part 6 – Configure the repository in GitHub
 
-1. **Branching model** (*Repository settings → Branching model*): development `develop`, production `main`; prefixes `feature/`, `bugfix/`, `hotfix/`, `release/`.
-2. **Branch restrictions** for `main` and `develop`: no direct writes, merge via PR only, no deletion, no force push.
-3. **Merge checks**: ≥1 approval (2 for `main`), ≥1 successful build and no failed builds, tasks resolved, reset approvals on new commits (some checks need Bitbucket Premium).
-4. **Default reviewers**: QA leads. **Merge strategy**: squash into `develop`; merge commit for `release/*` and `hotfix/*` into `main`.
-5. **Enable Pipelines** (*Repository settings → Pipelines → Settings*).
-6. **Repository variables** (tick **Secured** for secrets):
+1. **Branches**: default `main`, integration `develop`; prefixes `feature/`, `test/`, `ci/`, `bugfix/`, `hotfix/`, `release/`.
+2. **Branch protection** (*Settings → Branches* or *Rules → Rulesets*) for `main` and `develop`: require a pull request, ≥1 approval (2 for `main`), dismiss stale approvals on new commits, require status checks **Lint, types, framework rules** and **Smoke (QA, 3rd parties mocked)**, block force pushes and deletion.
+3. **Code owners / reviewers**: QA leads (optionally via a `.github/CODEOWNERS` file). **Merge strategy**: squash into `develop`; merge commit for `release/*` and `hotfix/*` into `main`.
+4. **Actions** are enabled by default (*Settings → Actions → General*).
+5. **Secrets** (*Settings → Secrets and variables → Actions → Secrets*):
 
-| Variable | Purpose | Secured |
+| Secret | Purpose |
+|---|---|
+| `PRACTICE_USERNAME` / `PRACTICE_PASSWORD` | practicetestautomation.com login |
+| `CUSTOMER_EMAIL` / `CUSTOMER_PASSWORD` | shopper |
+| `SELLER_EMAIL` / `SELLER_PASSWORD` | marketplace seller |
+| `PAYPAL_SANDBOX_EMAIL` / `PAYPAL_SANDBOX_PASSWORD` | PayPal sandbox |
+| `MAILOSAUR_API_KEY` / `MAILOSAUR_SERVER_ID` | test inbox |
+| ★ `ANTHROPIC_API_KEY` | **optional** – enables read-only AI triage of failed CI runs |
+
+6. **Variables** (same page, *Variables* tab):
+
+| Variable | Purpose | Default |
 |---|---|---|
-| `TEST_ENV` | default environment | no |
-| `CUSTOMER_EMAIL` / `CUSTOMER_PASSWORD` | shopper | yes |
-| `B2B_BUYER_EMAIL` / `B2B_BUYER_PASSWORD` | B2B buyer | yes |
-| `SELLER_EMAIL` / `SELLER_PASSWORD` | marketplace seller | yes |
-| `API_CLIENT_ID` / `API_CLIENT_SECRET` | backend API | yes |
-| `PAYMENT_PROVIDER` | stripe / adyen / braintree | no |
-| `PAYPAL_SANDBOX_EMAIL` / `PAYPAL_SANDBOX_PASSWORD` | PayPal sandbox | yes |
-| `MAILOSAUR_API_KEY` / `MAILOSAUR_SERVER_ID` | test inbox | yes |
-| ★ `ANTHROPIC_API_KEY` | **optional** – enables read-only AI triage of failed CI steps | yes |
+| `SMOKE_PROJECTS` | space-separated Playwright projects for smoke runs | `practice` |
+| `REGRESSION_PROJECTS` | projects for develop shards and nightly regression | `practice` |
+| `TEST_ENV` | environment for develop regression | `qa` |
+| `STAGING_READY` | `true` enables the staging smoke on push to `main` | unset (off) |
 
-7. **Schedules**: `develop` → `custom: nightly-regression`, daily.
-8. **Reports**: JUnit appears on each step's *Tests* tab; download `playwright-report/` and ★ `test-results/ai-triage/` from *Artifacts*.
+7. **Schedules**: run *Manual tests → nightly-regression* on demand, or add a `schedule:` trigger to `manual-tests.yml`.
+8. **Reports**: download `smoke-report`, `regression-report` and ★ `test-results-*` (incl. `ai-triage/`) from the run's *Artifacts*.
 
 ## Part 7 – ★ The integrated automation process
 
@@ -176,18 +182,18 @@ or step by step: *"Use test-design for PROJ-456"* → approve → *"Use pom-gene
 
 | Trigger | Runs |
 |---|---|
-| Every PR | Lint + types + ★ `ai:check` (CLAUDE.md rules, incl. "plan approved") → `@smoke` on QA with 3rd parties mocked |
-| Push to `develop` | Full `@regression` on 4 parallel shards + merged HTML report |
-| Push to `main` | `@smoke` on staging |
-| `custom: run-tests` | Choose `TEST_ENV`, `TAGS`, `PROJECT`, `MOCK_THIRD_PARTY`, ★ `TICKET` (runs only `@<TICKET>` tests) |
-| `custom: nightly-regression` / `cross-browser` / `prod-smoke` | Scheduled / multi-browser / read-only prod |
-| ★ Any failed test step | `AiTriageReporter` digest always; Claude triage report (`triage-*.md`) when `ANTHROPIC_API_KEY` is set — read-only, never changes the build result |
+| Every PR (`ci.yml`) | Lint + types + ★ `ai:check` (CLAUDE.md rules, incl. "plan approved") → `@smoke` on QA with 3rd parties mocked (`SMOKE_PROJECTS`) |
+| Push to `develop` (`ci.yml`) | `@regression` on 4 parallel shards (`REGRESSION_PROJECTS`) + merged HTML report |
+| Push to `main` (`ci.yml`) | `@smoke` on staging, when `STAGING_READY=true` |
+| Manual tests → `run-tests` | Choose `test_env`, `tags`, `project`, `mock_third_party`, ★ `ticket` (runs only `@<ticket>` tests) |
+| Manual tests → `nightly-regression` / `cross-browser` / `prod-smoke` | Full regression / multi-browser / read-only prod |
+| ★ Any failed test run | `AiTriageReporter` digest always; Claude triage report (`triage-*.md`) when `ANTHROPIC_API_KEY` is set — read-only, never changes the build result |
 
 Keep `mcr.microsoft.com/playwright:v1.63.0-noble` in sync with `@playwright/test` in `package.json`.
 
 ## Part 9 – Onboarding a new client project
 
-1. Clone/fork into the client's Bitbucket project; fill `config/environments/*.json`.
+1. Clone/fork into the client's GitHub organisation; fill `config/environments/*.json`.
 2. Ask developers for `data-testid` on key elements (the `pom-generator` skill lists missing ones per ticket).
 3. Adjust locators only inside page objects; subclass pages for heavily customised markup.
 4. Pick/add a payment adapter; point `src/api/services/*` at the platform API (SFCC, commercetools, Shopify, Adobe Commerce, Mirakl…).

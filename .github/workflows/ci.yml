@@ -1,0 +1,158 @@
+# Converted from bitbucket-pipelines.yml.
+# Projects per suite come from repository variables (Settings > Secrets and variables > Actions > Variables):
+#   SMOKE_PROJECTS       default "practice"  e.g. "storefront-chromium api practice" once real Commerce URLs exist
+#   REGRESSION_PROJECTS  default "practice"
+#   STAGING_READY        set to "true" to enable the staging smoke on main (config/environments/staging.json is a placeholder)
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [develop, main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CI: true
+  PRACTICE_USERNAME: ${{ secrets.PRACTICE_USERNAME }}
+  PRACTICE_PASSWORD: ${{ secrets.PRACTICE_PASSWORD }}
+  CUSTOMER_EMAIL: ${{ secrets.CUSTOMER_EMAIL }}
+  CUSTOMER_PASSWORD: ${{ secrets.CUSTOMER_PASSWORD }}
+  SELLER_EMAIL: ${{ secrets.SELLER_EMAIL }}
+  SELLER_PASSWORD: ${{ secrets.SELLER_PASSWORD }}
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+jobs:
+  verify:
+    name: Lint, types, framework rules
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm run verify
+
+  smoke-pr:
+    name: Smoke (QA, 3rd parties mocked)
+    if: github.event_name == 'pull_request'
+    needs: verify
+    runs-on: ubuntu-latest
+    # Keep the image tag in sync with @playwright/test in package.json
+    container: { image: 'mcr.microsoft.com/playwright:v1.63.0-noble' }
+    env:
+      HOME: /root
+      TEST_ENV: qa
+      MOCK_THIRD_PARTY: 'true'
+      PROJECTS: ${{ vars.SMOKE_PROJECTS || 'practice' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - name: Run smoke
+        run: npx playwright test --grep @smoke $(for p in $PROJECTS; do printf -- '--project=%s ' "$p"; done)
+      - name: AI triage (optional, read-only)
+        if: always()
+        run: bash scripts/ci-ai-triage.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: smoke-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
+
+  regression:
+    name: Regression ${{ matrix.shard }}/4
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    needs: verify
+    runs-on: ubuntu-latest
+    container: { image: 'mcr.microsoft.com/playwright:v1.63.0-noble' }
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    env:
+      HOME: /root
+      TEST_ENV: ${{ vars.TEST_ENV || 'qa' }}
+      PROJECTS: ${{ vars.REGRESSION_PROJECTS || 'practice' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - name: Run regression shard
+        run: >-
+          npx playwright test --grep @regression
+          $(for p in $PROJECTS; do printf -- '--project=%s ' "$p"; done)
+          --shard=${{ matrix.shard }}/4 --reporter=blob,./src/reporters/AiTriageReporter.ts
+      - name: AI triage (optional, read-only)
+        if: always()
+        run: bash scripts/ci-ai-triage.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: blob-report-${{ matrix.shard }}
+          path: blob-report/
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-${{ matrix.shard }}
+          path: test-results/
+          retention-days: 7
+
+  merge-reports:
+    name: Merge HTML report
+    if: always() && needs.regression.result != 'skipped'
+    needs: regression
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: blob-report-*
+          path: all-blob-reports
+          merge-multiple: true
+      - run: npx playwright merge-reports --reporter=html ./all-blob-reports
+      - uses: actions/upload-artifact@v4
+        with:
+          name: regression-report
+          path: playwright-report/
+          retention-days: 14
+
+  smoke-staging:
+    name: Smoke on staging
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.STAGING_READY == 'true'
+    needs: verify
+    runs-on: ubuntu-latest
+    container: { image: 'mcr.microsoft.com/playwright:v1.63.0-noble' }
+    env:
+      HOME: /root
+      TEST_ENV: staging
+      PROJECTS: ${{ vars.SMOKE_PROJECTS || 'practice' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - name: Run smoke
+        run: npx playwright test --grep @smoke $(for p in $PROJECTS; do printf -- '--project=%s ' "$p"; done)
+      - name: AI triage (optional, read-only)
+        if: always()
+        run: bash scripts/ci-ai-triage.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: staging-smoke-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14

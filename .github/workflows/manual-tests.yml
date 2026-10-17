@@ -1,0 +1,93 @@
+# On-demand suites, converted from the Bitbucket "custom" pipelines.
+# Run from Actions > Manual tests > Run workflow.
+name: Manual tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: Suite to run
+        type: choice
+        options: [run-tests, nightly-regression, cross-browser, prod-smoke]
+        default: run-tests
+      test_env:
+        description: TEST_ENV (run-tests only)
+        type: choice
+        options: [qa, dev, staging]
+        default: qa
+      tags:
+        description: Grep tags (run-tests only)
+        default: '@smoke'
+      project:
+        description: Playwright project (run-tests only)
+        default: practice
+      mock_third_party:
+        description: Mock third parties (run-tests only)
+        type: boolean
+        default: true
+      ticket:
+        description: Ticket id, e.g. KAN-1 (overrides tags)
+        default: ''
+
+env:
+  CI: true
+  HOME: /root
+  PRACTICE_USERNAME: ${{ secrets.PRACTICE_USERNAME }}
+  PRACTICE_PASSWORD: ${{ secrets.PRACTICE_PASSWORD }}
+  CUSTOMER_EMAIL: ${{ secrets.CUSTOMER_EMAIL }}
+  CUSTOMER_PASSWORD: ${{ secrets.CUSTOMER_PASSWORD }}
+  SELLER_EMAIL: ${{ secrets.SELLER_EMAIL }}
+  SELLER_PASSWORD: ${{ secrets.SELLER_PASSWORD }}
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+jobs:
+  tests:
+    name: ${{ inputs.suite }}
+    runs-on: ubuntu-latest
+    # Keep the image tag in sync with @playwright/test in package.json
+    container: { image: 'mcr.microsoft.com/playwright:v1.63.0-noble' }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+
+      - name: Run selected tests
+        if: inputs.suite == 'run-tests'
+        env:
+          TEST_ENV: ${{ inputs.test_env }}
+          MOCK_THIRD_PARTY: ${{ inputs.mock_third_party }}
+          TAGS: ${{ inputs.ticket != '' && format('@{0}', inputs.ticket) || inputs.tags }}
+          PROJECT: ${{ inputs.project }}
+        run: npx playwright test --grep "$TAGS" --project="$PROJECT"
+
+      - name: Nightly regression (qa)
+        if: inputs.suite == 'nightly-regression'
+        env:
+          TEST_ENV: qa
+          PROJECTS: ${{ vars.REGRESSION_PROJECTS || 'practice' }}
+        run: npx playwright test --grep @regression $(for p in $PROJECTS; do printf -- '--project=%s ' "$p"; done)
+
+      - name: Cross-browser smoke
+        if: inputs.suite == 'cross-browser'
+        env:
+          TEST_ENV: qa
+        run: npx playwright test --grep @cross-browser --project=storefront-firefox --project=storefront-webkit
+
+      - name: Production read-only smoke
+        if: inputs.suite == 'prod-smoke'
+        env:
+          TEST_ENV: prod
+        run: npx playwright test --grep @prod-safe --project=storefront-chromium
+
+      - name: AI triage (optional, read-only)
+        if: always() && inputs.suite != 'cross-browser' && inputs.suite != 'prod-smoke'
+        run: bash scripts/ci-ai-triage.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ${{ inputs.suite }}-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14

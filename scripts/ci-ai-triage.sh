@@ -7,5 +7,5 @@ fi
 npm install -g @anthropic-ai/claude-code >/dev/null 2>&1 || { echo "claude CLI install failed; skipping"; exit 0; }
 mkdir -p test-results/ai-triage
 claude -p "Use the failure-triage skill on test-results/ai-triage/failures.md. Classify each failure as product defect, script issue, data/env issue or flaky. Output markdown only." \
-  --allowedTools "Read,Grep,Glob" > "test-results/ai-triage/triage-${BITBUCKET_BUILD_NUMBER:-local}.md" 2>/dev/null || true
+  --allowedTools "Read,Grep,Glob" > "test-results/ai-triage/triage-${GITHUB_RUN_ID:-${BITBUCKET_BUILD_NUMBER:-local}}.md" 2>/dev/null || true
 exit 0
