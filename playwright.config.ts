@@ -59,6 +59,8 @@ export default defineConfig({
       testDir: './tests/e2e/marketplace',
       use: { ...devices['Desktop Chrome'], baseURL: env.sellerPortalUrl }
     },
+    // Practice Test Automation site: standalone, no storefront auth setup
+    { name: 'practice', testDir: './tests/e2e/practice', use: { ...devices['Desktop Chrome'] } },
     { name: 'integration', testDir: './tests/integration', use: { ...devices['Desktop Chrome'] } },
     { name: 'api', testDir: './tests/api', use: { baseURL: env.apiUrl } }
   ]

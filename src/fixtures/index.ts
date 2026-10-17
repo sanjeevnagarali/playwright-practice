@@ -7,6 +7,8 @@ import { PdpPage } from '../pages/storefront/PdpPage';
 import { CartPage } from '../pages/storefront/CartPage';
 import { CheckoutPage } from '../pages/storefront/CheckoutPage';
 import { OrderConfirmationPage } from '../pages/storefront/OrderConfirmationPage';
+import { PracticeLoginPage } from '../pages/practice/PracticeLoginPage';
+import { LoggedInSuccessfullyPage } from '../pages/practice/LoggedInSuccessfullyPage';
 import { CheckoutFlow } from '../flows/CheckoutFlow';
 import { ApiClient } from '../api/ApiClient';
 import { AuthService } from '../api/services/AuthService';
@@ -20,6 +22,7 @@ type Pages = {
   homePage: HomePage; loginPage: LoginPage; registrationPage: RegistrationPage;
   searchPage: SearchResultsPage; pdpPage: PdpPage; cartPage: CartPage;
   checkoutPage: CheckoutPage; confirmationPage: OrderConfirmationPage; checkoutFlow: CheckoutFlow;
+  practiceLoginPage: PracticeLoginPage; loggedInPage: LoggedInSuccessfullyPage;
 };
 
 export const test = base.extend<Pages & { autoMocks: void }>({
@@ -32,7 +35,9 @@ export const test = base.extend<Pages & { autoMocks: void }>({
   cartPage: async ({ page }, use) => use(new CartPage(page)),
   checkoutPage: async ({ page }, use) => use(new CheckoutPage(page)),
   confirmationPage: async ({ page }, use) => use(new OrderConfirmationPage(page)),
-  checkoutFlow: async ({ page }, use) => use(new CheckoutFlow(page))
+  checkoutFlow: async ({ page }, use) => use(new CheckoutFlow(page)),
+  practiceLoginPage: async ({ page }, use) => use(new PracticeLoginPage(page)),
+  loggedInPage: async ({ page }, use) => use(new LoggedInSuccessfullyPage(page))
 });
 
 type Services = { api: ApiClient; auth: AuthService; carts: CartService; products: ProductService; orders: OrderService };
